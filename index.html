@@ -256,13 +256,6 @@ add_filter( 'post_type_link', 'modify_model_links', 10, 2 );
 					</section>
 
 					<section data-transition="none">
-						<h2>Step 2: Filter post_type_link</h2>
-						<p>What if make or body_type isn't set?<br />The permalinks won't work.</p>
-						<br />
-						<p class="fragment">You'd probably want to set defaults,<br />as "uncategorized" is to categories.</p>
-					</section>
-
-					<section data-transition="none">
 						<h2>Dealing with term links</h2>
 						<p class="fragment">
 							Need to replace <code>%body_type%</code> in the <strong>make</strong> URIs,<br />
@@ -407,16 +400,6 @@ register_taxonomy( 'make', array(
 
 					<section data-transition="none">
 						<h2>Recipe 3: Creating Post "Sections"</h2>
-						<p>Could fix this with proper naming,<br />like "Portland 2013 Schedule"</p>
-						<ul class="fragment">
-							<li>/wordcamp/portland/portland-2013-schedule/</li>
-							<li>/wordcamp/san-francisco/san-francisco-2013-schedule/</li>
-							<li>/wordcamp/boston/boston-2013-schedule/</li>
-						</ul>
-					</section>
-
-					<section data-transition="none">
-						<h2>Recipe 3: Creating Post "Sections"</h2>
 						<dl>
 							<dt>Goal URIs:</dt>
 								<dd>/wordcamp/portland/</dd>
@@ -526,28 +509,6 @@ get_template_part( 'wordcamp', get_query_var( 'wc_section' ) );
 					</section>
 
 					<section data-transition="none">
-						<h2>Step 3: Templates</h2>
-						<pre><code data-trim contenteditable class="php">
-function wordcamp_templates( $template = '' ) {
-  $object = get_queried_object();
-
-  if ( $object && 'wordcamp' == $object->post_type ) {
-	$templates = array();
-	if ( $section = get_query_var( 'wc_section' ) )
-	  $templates[] = "wordcamp-{$section}.php";
-	$templates[] = 'wordcamp.php';
-
-	if ( $new_template = locate_template( $templates ) )
-	  return $new_template;
-  }
-
-  return $template;
-}
-add_filter( 'single_template', 'wordcamp_templates' );
-						</code></pre>
-					</section>
-
-					<section data-transition="none">
 						<h2>Step 4: <span class="fragment">Flush!</span></h2>
 					</section>
 
@@ -591,13 +552,13 @@ add_filter( 'single_template', 'wordcamp_templates' );
 					<section data-transition="none">
 						<h2>redirect_guess_404_permalink</h2>
 						<h3 style="font-weight:bold">The Good</h3>
-						<p>This magical function is what handles the auto 301s.</p>
+						<p>This magical, very cool function is what handles the auto 301s.</p>
 					</section>
 
 					<section data-transition="none">
 						<h2>redirect_guess_404_permalink</h2>
 						<h3 style="font-weight:bold">The How</h3>
-						<p class="fragment">WordPress thinks this is a page</p>
+						<p class="fragment">Page rewrite matches</p>
 						<p class="fragment">Gets the "basename" of the page<br />e.g. /2013/07/21/<strong>something</strong>/</p>
 						<pre class="fragment"><code data-trim contenteditable>
 SELECT ID
@@ -661,7 +622,6 @@ add_action( 'template_redirect', 'recipe_4_2', 5 );
 									<li class="fragment"><a href="http://wordpress.org/plugins/safe-redirect-manager/">Safe Redirect Manager</a></li>
 								</ul>
 							</li>
-							<li class="fragment">Server software (Apache, Nginx, etc.)</li>
 						</ul>
 					</section>
 
