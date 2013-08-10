@@ -1,0 +1,731 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="utf-8">
+
+		<title>Advanced Rewrite Rules by Example</title>
+
+		<meta name="description" content="A presentation on rewrite rules">
+		<meta name="author" content="Matthew Boynes">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<link rel="stylesheet" href="css/reveal.min.css">
+		<link rel="stylesheet" href="css/theme/alley.css" id="theme">
+
+		<!-- For syntax highlighting -->
+		<link rel="stylesheet" href="lib/css/zenburn.css">
+
+		<!-- If the query includes 'print-pdf', use the PDF print sheet -->
+		<script>
+			document.write( '<link rel="stylesheet" href="css/print/' + ( window.location.search.match( /print-pdf/gi ) ? 'pdf' : 'paper' ) + '.css" type="text/css" media="print">' );
+		</script>
+
+		<!--[if lt IE 9]>
+		<script src="lib/js/html5shiv.js"></script>
+		<![endif]-->
+	</head>
+
+	<body>
+
+		<div class="reveal concave">
+
+			<!-- Any section element inside of this container is displayed as a slide -->
+			<div class="slides">
+
+				<section>
+					<h1>Rewrite Recipes</h1>
+					<p>Advanced Permalinks and Rewrites by Example</p>
+					<br />
+					<p>
+						by Matthew Boynes / <a href="https://twitter.com/senyob">@senyob</a> / <a href="mailto:m@boyn.es">m@boyn.es</a><br />
+						Alley Interactive / <a href="http://alleyinteractive.com/">alleyinteractive.com</a>
+					</p>
+					<aside class="notes">
+						I'm excited to get busy, so I'll skip the "About Me" stuff for now.
+						Let's get right to it!
+					</aside>
+				</section>
+
+				<!-- http://wordpress.stackexchange.com/questions/5308/custom-post-types-taxonomies-and-permalinks -->
+				<section>
+					<section data-transition="none">
+						<h2>Recipe 1: Adding custom taxonomies to custom post type rewrites</h2>
+						<p class="fragment">Website for car dealership</p>
+						<dl class="fragment">
+							<dt>Goal URI:</dt>
+								<dd>/inventory/toyota/camry/</dd>
+							<dt>Taxonomy:</dt>
+								<dd>make (e.g. Toyota)</dd>
+							<dt>Post Type:</dt>
+								<dd>model (e.g. Camry)</dd>
+						</dl>
+
+						<aside class="notes">
+							This is a fairly common thing to do. Has anyone here tried to do something similar to this?<br />
+							There's no right answer here, was it easy or hard? (there is a right answer, and it's that WP makes it very very easy)
+						</aside>
+
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 1: Alter the post type &amp; taxonomy slugs</h2>
+						<pre class="fragment"><code data-trim contenteditable>
+register_taxonomy( 'make', 'model', array(
+  'rewrite' => array(
+	'slug' => 'inventory'
+  )
+) );
+
+register_post_type( 'model', array(
+  'public' => true,
+  'rewrite' => array(
+	'slug' => 'inventory/%make%'
+  )
+) );
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 2: Filter post_type_link</h2>
+						<p>Right now, the custom post type links<br />have the literal <code>%make%</code> in them.</p>
+						<pre class="fragment"><code data-trim contenteditable>
+function modify_model_links( $link, $post ) {
+  if ( 'model' == $post->post_type ) {
+	if ( $makes = get_the_terms( $post->ID, 'make' ) ) {
+	  return str_replace( '%make%', array_unshift( $makes )->slug, $link );
+	}
+  }
+  return $link;
+}
+add_filter( 'post_type_link', 'modify_model_links', 10, 2 );
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 3: Flush Rewrites</h2>
+						<p>Any changes to rewrite rules require flushing them.</p>
+						<ol class="fragment">
+							<li>Go to <strong>Settings &rarr; Permalinks</strong></li>
+							<li>Click <strong>Save Changes</strong></li>
+						</ol>
+					</section>
+
+					<section data-transition="none">
+						<h2>Proof is in the pudding, so let's try it out!</h2>
+						<p>Psst, Matt, that's you.</p>
+					</section>
+
+				</section>
+
+				<section>
+					<h2>Awesome.</h2>
+					<img src="images/self_high_five.gif" alt="High Five" />
+					<aside class="notes">
+						I do complex rewrite work all the time. Every site I build. And this, what we just did, never ceases to amaze me. Do you all believe what we just did? Do you believe how easy that was? Let's just take a moment and say, "Holy crap, that was really cool!"
+					</aside>
+				</section>
+
+				<section>
+
+					<section data-transition="none">
+						<h2>What's happening here?</h2>
+						<ol>
+							<li class="fragment">Request comes in</li>
+							<li class="fragment"><strong>WP::parse_request converts the URL to query args</strong></li>
+							<li class="fragment">Other stuff happens, covered in other talks</li>
+						</ol>
+					</section>
+
+					<section data-transition="none">
+						<h2>WP::parse_request</h2>
+						<ol>
+							<li class="fragment">"Normalizes" the URI</li>
+							<li class="fragment">Loops over all rewrite rules for a match</li>
+							<li class="fragment">Replaces the $matches with regex captures</li>
+						</ol>
+					</section>
+
+					<section data-transition="none">
+						<h2>Anatomy of a Rewrite Rule</h2>
+						<p class="fragment">Array key => value</p>
+						<p class="fragment">Regular expression (the rule) => Redirect (default URL)</p>
+						<br />
+						<p class="fragment">Since this is an array, note that you can't have the same rule twice</p>
+					</section>
+
+					<section data-transition="none">
+						<h2>Storage</h2>
+						<ul>
+							<li class="fragment">Rewrite rules are stored in wp_options</li>
+							<li class="fragment">Serves as a cache</li>
+							<li class="fragment">"Flushing" rules deletes it</li>
+						</ul>
+					</section>
+
+					<section data-transition="none">
+						<h2>$wp_rewrite->rules</h2>
+						<pre><code data-trim contenteditable class="php">
+array(
+	'category/(.+?)/feed/(feed|rdf|rss|rss2|atom)/?$'
+	=> 'index.php?category_name=$matches[1]&feed=$matches[2]',
+	'category/(.+?)/(feed|rdf|rss|rss2|atom)/?$'
+	=> 'index.php?category_name=$matches[1]&feed=$matches[2]',
+	'category/(.+?)/page/?([0-9]{1,})/?$'
+	=> 'index.php?category_name=$matches[1]&paged=$matches[2]',
+	'category/(.+?)/?$'
+	=> 'index.php?category_name=$matches[1]',
+	'tag/([^/]+)/feed/(feed|rdf|rss|rss2|atom)/?$'
+	=> 'index.php?tag=$matches[1]&feed=$matches[2]',
+	'tag/([^/]+)/(feed|rdf|rss|rss2|atom)/?$'
+	=> 'index.php?tag=$matches[1]&feed=$matches[2]',
+	'tag/([^/]+)/page/?([0-9]{1,})/?$'
+	=> 'index.php?tag=$matches[1]&paged=$matches[2]',
+	'tag/([^/]+)/?$'
+	=> 'index.php?tag=$matches[1]',
+	'robots\.txt$'
+	=> 'index.php?robots=1',
+	'.*wp-(atom|rdf|rss|rss2|feed|commentsrss2)\.php$'
+	=> 'index.php?feed=old',
+	# ...
+)
+
+						</code></pre>
+					</section>
+				</section>
+
+				<section>
+					<section data-transition="none">
+						<h2>Recipe 2: Making one custom taxonomy a "parent" of another</h2>
+						<p class="fragment">What if we wanted to separate by body type?</p>
+						<p class="fragment">Let's make body type a taxonomy, too.</p>
+					</section>
+
+					<section data-transition="none">
+						<h2>Post Types and Taxonomies</h2>
+						<dl class="fragment">
+							<dt>Goal URI:</dt>
+								<dd>/inventory/sedans/toyota/camry/</dd>
+							<dt>Taxonomy:</dt>
+								<dd>body_type (e.g. sedans)</dd>
+							<dt>Taxonomy:</dt>
+								<dd>make (e.g. Toyota)</dd>
+							<dt>Post Type:</dt>
+								<dd>model (e.g. Camry)</dd>
+						</dl>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 1: Alter rewrite slugs</h2>
+						<pre class="fragment"><code data-trim contenteditable>
+register_taxonomy( 'body_type', 'model', array(
+  'rewrite' => array( 'slug' => 'inventory' )
+) );
+
+register_taxonomy( 'make', 'model', array(
+  'rewrite' => array( 'slug' => 'inventory/%body_type%' )
+) );
+
+register_post_type( 'model', array(
+  'public' => true,
+  'rewrite' => array( 'slug' => 'inventory/%body_type%/%make%' )
+) );
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 2: Filter post_type_link</h2>
+						<pre class="fragment"><code data-trim contenteditable>
+function modify_model_links( $link, $post ) {
+  if ( 'model' == $post->post_type ) {
+	if ( $body_types = get_the_terms( $post->ID, 'body_type' ) ) {
+	  $link = str_replace( '%body_type%', array_unshift( $body_types )->slug, $link );
+	}
+	if ( $makes = get_the_terms( $post->ID, 'make' ) ) {
+	  $link = str_replace( '%make%', array_unshift( $makes )->slug, $link );
+	}
+  }
+  return $link;
+}
+add_filter( 'post_type_link', 'modify_model_links', 10, 2 );
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 2: Filter post_type_link</h2>
+						<p>What if make or body_type isn't set?<br />The permalinks won't work.</p>
+						<br />
+						<p class="fragment">You'd probably want to set defaults,<br />as "uncategorized" is to categories.</p>
+					</section>
+
+					<section data-transition="none">
+						<h2>Dealing with term links</h2>
+						<p class="fragment">
+							Need to replace <code>%body_type%</code> in the <strong>make</strong> URIs,<br />
+							e.g. <code>/inventory/%body_type%/.../</code>
+						</p><br />
+						<p class="fragment">This is a little trickier... <strong class="fragment">Why?</strong></p><br />
+						<p class="fragment">Which body type do we want to be the default?</p><br />
+						<p class="fragment">Enter <strong>add_permastruct</strong> and our first real contact with the Rewrite API!</p>
+
+						<aside class="notes">
+							<p>It's trickier because you want "Toyota" to be independent of body type; Toyota doesn't belong to one body type</p>
+							<p>If nobody guesses that, we'll look at the URL: /inventory/sedans/toyota/ -- they're all sedans!</p>
+							<p>Which body type do we want to be the default? None of them, so we'll use "all".</p>
+							<p>WordPress will think "all" is a specific term in the body_type taxonomy, so we need to solve for that</p>
+						</aside>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 3: Add "all" body type</h2>
+						<p>WordPress makes this super easy!</p>
+						<pre class="fragment"><code contenteditable>function add_permastruct( $name, $struct, $args = array() ) { }</code></pre>
+						<pre class="fragment"><code contenteditable>
+add_permastruct( "all_makes", "inventory/all/%make%" );
+
+register_taxonomy( 'make', 'model', array(
+...
+						</code></pre>
+
+						<p class="fragment"><strong>Caveat: Order is everything!</strong><br />Must come before 'make' taxonomy</p>
+
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 4: Filter term_link</h2>
+						<pre class="fragment"><code data-trim contenteditable>
+function modify_make_links( $termlink, $term, $taxonomy ) {
+  if ( 'make' == $taxonomy ) {
+	return str_replace( '%body_type%', 'all', $termlink );
+  }
+  return $termlink;
+}
+add_filter( 'term_link', 'modify_make_links', 10, 3 );
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 5: Flush Rewrites</h2>
+						<p>Always. Flush. Your. Rewrites.</p>
+					</section>
+
+					<section data-transition="none">
+						<h2>Was the term_link stuff necessary?</h2>
+						<p>Could we have simply done the following?</p>
+						<pre><code data-trim contenteditable>
+register_taxonomy( 'make', array(
+  'rewrite' => array(
+	'slug' => 'inventory/all'
+  )
+) );
+						</code></pre>
+						<br />
+						<p class="fragment">Yes and no. It would work in showing all body types, but wouldn't allow us to restrict by them.</p>
+					</section>
+
+				</section>
+
+				<section>
+					<section data-transition="none">
+						<h2>Detour: Helpful Tools</h2>
+						<ul>
+							<li class="fragment">
+								<strong>Rewrite Rules Inspector</strong><br />
+								<a href="http://wordpress.org/plugins/rewrite-rules-inspector/" target="_blank">wordpress.org/plugins/rewrite-rules-inspector/</a>
+							</li>
+							<li class="fragment">
+								<strong>Debug Bar</strong> (&amp; friends)<br />
+								<a href="http://wordpress.org/plugins/debug-bar/" target="_blank">wordpress.org/plugins/debug-bar/</a>
+							</li>
+							<li class="fragment">
+								<strong>Regular Expressions Pocket Reference</strong><br />
+								By Tony Stubblebine, <a href="http://shop.oreilly.com/product/9780596514273.do" target="_blank">oreilly.com</a>
+							</li>
+						</ul>
+					</section>
+
+					<section data-transition="none">
+						<h2>Rewrite Rules Inspector</h2>
+						<p>Let's look at the last set of rewrite rules.</p>
+					</section>
+				</section>
+
+				<section>
+					<section data-transition="none">
+						<h2>Recipe 3: Creating Post "Sections"</h2>
+						<div class="fragment">
+							<p>Website for WordCamps.<br />Each WordCamp has the same sections:</p>
+							<ul style="">
+								<li>Schedule</li>
+								<li>Speakers</li>
+								<li>Sponsors</li>
+								<li>Tickets</li>
+								<li>Location</li>
+							</ul>
+						</div>
+
+						<aside class="notes">
+							I've come across this a few times, personally. Anyone else?
+						</aside>
+					</section>
+
+					<section data-transition="none">
+						<h2>Recipe 3: Creating Post "Sections"</h2>
+						<dl>
+							<dt>Goal URIs:</dt>
+								<dd>/wordcamp/portland/</dd>
+								<dd>/wordcamp/portland/schedule/</dd>
+								<dd>/wordcamp/portland/speakers/</dd>
+							<dt>???</dt>
+								<dd>wordcamp (e.g. portland)</dd>
+							<dt>???</dt>
+								<dd>section (e.g. schedule)</dd>
+						</dl>
+					</section>
+
+					<section data-transition="none">
+						<h2>Recipe 3: Creating Post "Sections"</h2>
+						<dl>
+							<dt>Taxonomy:</dt>
+								<dd>wordcamp (e.g. portland)</dd>
+							<dt>Post Type:</dt>
+								<dd>section (e.g. schedule)</dd>
+							<dt>Result:</dt>
+								<dd>/wordcamp/portland/schedule/</dd>
+								<dd class="fragment">/wordcamp/san-francisco/schedule-2/</dd>
+								<dd class="fragment">/wordcamp/boston/schedule-3/</dd>
+						</dl>
+					</section>
+
+					<section data-transition="none">
+						<img src="images/sections.png" style="margin-top:0" />
+					</section>
+
+					<section data-transition="none">
+						<h2>Recipe 3: Creating Post "Sections"</h2>
+						<p>Could fix this with proper naming,<br />like "Portland 2013 Schedule"</p>
+						<ul class="fragment">
+							<li>/wordcamp/portland/portland-2013-schedule/</li>
+							<li>/wordcamp/san-francisco/san-francisco-2013-schedule/</li>
+							<li>/wordcamp/boston/boston-2013-schedule/</li>
+						</ul>
+					</section>
+
+					<section data-transition="none">
+						<h2>Recipe 3: Creating Post "Sections"</h2>
+						<dl>
+							<dt>Goal URIs:</dt>
+								<dd>/wordcamp/portland/</dd>
+								<dd>/wordcamp/portland/schedule/</dd>
+								<dd>/wordcamp/portland/speakers/</dd>
+							<dt>???</dt>
+								<dd>wordcamp (e.g. portland)</dd>
+							<dt>???</dt>
+								<dd>section (e.g. schedule)</dd>
+						</dl>
+					</section>
+
+					<section data-transition="none">
+						<h2>Recipe 3: Creating Post "Sections"</h2>
+						<dl>
+							<dt>Goal URIs:</dt>
+								<dd>/wordcamp/portland/</dd>
+								<dd>/wordcamp/portland/schedule/</dd>
+								<dd>/wordcamp/portland/speakers/</dd>
+							<dt>Post Type:</dt>
+								<dd>wordcamp (e.g. portland)</dd>
+							<dt>???</dt>
+								<dd>section (e.g. schedule)</dd>
+						</dl>
+					</section>
+
+					<section data-transition="none">
+						<h2>Recipe 3: Creating Post "Sections"</h2>
+						<dl>
+							<dt>Goal URIs:</dt>
+								<dd>/wordcamp/portland/</dd>
+								<dd>/wordcamp/portland/schedule/</dd>
+								<dd>/wordcamp/portland/speakers/</dd>
+							<dt>Post Type:</dt>
+								<dd>wordcamp (e.g. portland)</dd>
+							<dt>Post Meta:</dt>
+								<dd>section (e.g. schedule)</dd>
+						</dl>
+						<aside class="notes">
+							This is going to require some tricks
+						</aside>
+					</section>
+
+					<section data-transition="none" data-background="images/illusion.png">
+						<!-- <small class="image-copyright">From the <a href="http://arresteddevelopment.wikia.com/wiki/G.O.B.">"G.O.B."</a> article on the <a href="http://arresteddevelopment.wikia.com/" title="Arrested Development Wiki">Arrested Development wiki</a> at <a href="http://www.wikia.com/">Wikia</a> and is licensed under the <a href="http://creativecommons.org/licenses/by-sa/3.0/">Creative Commons Attribution-Share Alike License</a>.</small> -->
+						<aside class="notes">
+							Excuse me, illusions! Specifically, post meta is not directly addressable through a query.
+							Therefore, sections won't point to anything specifically, but they'll be used by our templates.
+						</aside>
+					</section>
+
+					<section data-transition="none">
+						<h2>Behind the Scenes</h2>
+						<p><br />Source: <a href="https://gist.github.com/mboynes/6180890">https://gist.github.com/mboynes/6180890</a></p>
+						<p><a href="http://fieldmanager.org/">Fieldmanager.org</a></p>
+						<aside class="notes">
+							Switch over to demo.
+						</aside>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 1: Add Rewrite Tag</h2>
+						<pre><code class="php">function add_rewrite_tag( $tag, $regex, $query = '' ) { }</code></pre>
+						<pre class="fragment"><code data-trim contenteditable class="php">
+add_rewrite_tag(
+  '%wc_section%',
+  '(schedule|speakers|sponsors|tickets|location)'
+);
+						</code></pre>
+						<aside class="notes">
+							This mainly just gives us the query var, but also opens up other options if we want to use this tag elsewhere
+						</aside>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 2: Add Rewrite Rule</h2>
+						<pre><code class="php">function add_rewrite_rule( $regex, $redirect, $after = 'bottom' ) { }</code></pre>
+						<pre class="fragment"><code data-trim contenteditable class="php">
+add_rewrite_rule(
+  'wordcamp/([^/]+)/(schedule|speakers|sponsors|tickets|location)/?$',
+  'index.php?wordcamp=$matches[1]&wc_section=$matches[2]',
+  'top'
+);
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 3: Templates</h2>
+						<p class="code-align">
+							<code>wordcamp.php</code><br />
+							<code>wordcamp-schedule.php</code><br />
+							<code>wordcamp-speakers.php</code><br />
+							<code>wordcamp-sponsors.php</code><br />
+							<code>wordcamp-tickets.php</code><br />
+							<code>wordcamp-location.php</code>
+						</p>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 3: Templates</h2>
+						<p class="code-align">single-wordcamp.php:</p>
+						<pre><code data-trim contenteditable class="php">
+&lt;?php
+get_template_part( 'wordcamp', get_query_var( 'wc_section' ) );
+?&gt;
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 3: Templates</h2>
+						<pre><code data-trim contenteditable class="php">
+function wordcamp_templates( $template = '' ) {
+  $object = get_queried_object();
+
+  if ( $object && 'wordcamp' == $object->post_type ) {
+	$templates = array();
+	if ( $section = get_query_var( 'wc_section' ) )
+	  $templates[] = "wordcamp-{$section}.php";
+	$templates[] = 'wordcamp.php';
+
+	if ( $new_template = locate_template( $templates ) )
+	  return $new_template;
+  }
+
+  return $template;
+}
+add_filter( 'single_template', 'wordcamp_templates' );
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>Step 4: <span class="fragment">Flush!</span></h2>
+					</section>
+
+					<section data-transition="none">
+						<h2>Demo</h2>
+					</section>
+
+				</section>
+
+				<section data-background="images/permanence.jpg"></section>
+
+				<section>
+
+					<section data-transition="none">
+						<h2>Recipe 4: 301 Ways to Update your Permalinks</h2>
+						<p>Not 404 ways to break things</p>
+						<p class="fragment">Or 418 ways to make tea</p>
+					</section>
+
+					<section data-transition="none">
+						<h2>4.1 Core Permalink Structures</h2>
+						<p>Change core permalinks, what happens to old ones?</p>
+						<p class="fragment">Demo</p>
+						<aside class="notes">
+							Demo time! Change from day + name to month + name
+						</aside>
+					</section>
+
+					<section data-transition="none">
+						<h2>4.1 Core Permalink Structures</h2>
+						<p>Some permalink changes will automatically 301 old structures!</p>
+						<p class="fragment"><strong>When?</strong> <span class="fragment">When the post name ends the old permalinks (some exceptions)</span></p>
+						<p class="fragment"><strong>How?</strong> <span class="fragment">By selling your soul to the devil.</span></p>
+					</section>
+
+					<section data-transition="none">
+						<h2>4.1 Core Permalink Structures</h2>
+						<img src="images/chart.png" />
+					</section>
+
+					<section data-transition="none">
+						<h2>redirect_guess_404_permalink</h2>
+						<h3 style="font-weight:bold">The Good</h3>
+						<p>This magical function is what handles the auto 301s.</p>
+					</section>
+
+					<section data-transition="none">
+						<h2>redirect_guess_404_permalink</h2>
+						<h3 style="font-weight:bold">The How</h3>
+						<p class="fragment">WordPress thinks this is a page</p>
+						<p class="fragment">Gets the "basename" of the page<br />e.g. /2013/07/21/<strong>something</strong>/</p>
+						<pre class="fragment"><code data-trim contenteditable>
+SELECT ID
+FROM wp_posts
+WHERE post_name LIKE 'something%'
+AND post_status = 'publish'
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>redirect_guess_404_permalink</h2>
+						<h3 style="font-weight:bold">The Bad (and Ugly)</h3>
+						<br />
+						<p>Have you ever had WordPress redirect a URL to a post or page that made no sense at all?</p>
+						<br />
+						<p class="fragment"><strong>This was probably why.</strong></p>
+						<aside class="notes">
+							Give a demo of addressing a post by its first letter
+						</aside>
+					</section>
+
+					<section data-transition="none">
+						<h2>4.2 Better Automatic Redirects</h2>
+						<pre><code data-trim contenteditable class="php">
+function recipe_4_2() {
+  if ( is_404() ) {
+	$redirects = wcpdx_get_redirects();
+	$matched_rule = false;
+	$request = wcpdx_get_reqest();
+	foreach ( (array) $redirects as $match => $query ) {
+	  if ( preg_match("#^$match#", $request, $matches) ||
+		preg_match("#^$match#", urldecode($request), $matches) ) {
+
+		// Got a match.
+		$matched_rule = true;
+		break;
+	  }
+	}
+	if ( $matched_rule ) {
+	  $query = preg_replace("!^.+\?!", '', $query);
+	  $redirect = addslashes(WP_MatchesMapRegex::apply($query, $matches));
+	  if ( $redirect ) {
+		wp_redirect( home_url( "?$redirect" ), 301 );
+		exit;
+	  }
+	}
+  }
+}
+add_action( 'template_redirect', 'recipe_4_2', 5 );
+
+						</code></pre>
+					</section>
+
+					<section data-transition="none">
+						<h2>4.3 Options for Custom Redirects</h2>
+						<ul>
+							<li class="fragment">
+								Plugins
+								<ul>
+									<li class="fragment"><a href="http://wordpress.org/plugins/simple-301-redirects/">Simple 301 Redirects</a></li>
+									<li class="fragment"><a href="http://wordpress.org/plugins/safe-redirect-manager/">Safe Redirect Manager</a></li>
+								</ul>
+							</li>
+							<li class="fragment">Server software (Apache, Nginx, etc.)</li>
+						</ul>
+					</section>
+
+					<section data-transition="none">
+						<h2>4.4 Replacing Old Permalinks</h2>
+						<ul>
+							<li class="fragment">Your content is riddled with old links</li>
+							<li class="fragment">Is it worth changing them?</li>
+							<li class="fragment">Enter wp-cli!</li>
+						</ul>
+					</section>
+
+				</section>
+
+				<section>
+					<h2>About Alley Interactive</h2>
+					<ul>
+						<li>Multi-platform development agency based in New York City, with team members around the country</li>
+						<li>Clients in news media, entertainment, non-profit, and education</li>
+						<li>We strive to advance WordPress's credibility as a platform for large projects</li>
+						<li>WordPress.com VIP Partner</li>
+						<li><strong>We're hiring!</strong></li>
+					</ul>
+				</section>
+
+				<section>
+					<h1>Questions?</h1>
+					<dl id="resources">
+						<dt>This:</dt> <dd>http://boyn.es/wcpdx/</dd>
+					</dl>
+				</section>
+
+			</div>
+
+			<img src="images/logo.png" alt="Alley Interactive" id="logo" />
+		</div>
+
+		<script src="lib/js/head.min.js"></script>
+		<script src="js/reveal.min.js"></script>
+
+		<script>
+
+			// Full list of configuration options available here:
+			// https://github.com/hakimel/reveal.js#configuration
+			Reveal.initialize({
+				controls: true,
+				progress: true,
+				history: true,
+				center: false,
+				rollingLinks: false,
+				transition: 'concave',
+
+				theme: Reveal.getQueryHash().theme, // available themes are in /css/theme
+				transition: Reveal.getQueryHash().transition || 'default', // default/cube/page/concave/zoom/linear/fade/none
+
+				// Optional libraries used to extend on reveal.js
+				dependencies: [
+					{ src: 'lib/js/classList.js', condition: function() { return !document.body.classList; } },
+					{ src: 'plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+					{ src: 'plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } }
+				]
+			});
+
+		</script>
+
+	</body>
+</html>
