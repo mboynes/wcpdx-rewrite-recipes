@@ -1,9 +1,18 @@
 <?php
+/**
+ * Recipe 3: Creating Post "Sections"
+ */
 
-# To get the the templates working (as wordcamp.php, wordcamp-schedule.php, etc.),
-# we can either add this to single-wordcamp.php:
-# get_template_part( 'wordcamp', get_query_var( 'wc_section' ) );
-# or we can alter the template hierarchy as follows:
+
+/**
+ * To get the the templates working (as wordcamp.php, wordcamp-schedule.php, etc.),
+ * we can either add this to single-wordcamp.php:
+ * get_template_part( 'wordcamp', get_query_var( 'wc_section' ) );
+ * or we can alter the template hierarchy as follows
+ *
+ * @param string $template
+ * @return string
+ */
 function recipe_3_templates( $template = '' ) {
 	$object = get_queried_object();
 
@@ -22,6 +31,12 @@ function recipe_3_templates( $template = '' ) {
 add_filter( 'single_template', 'recipe_3_templates' );
 
 
+
+/**
+ * Add rewrite rules for post sections
+ *
+ * @return void
+ */
 function recipe_3() {
 	add_rewrite_tag( '%wc_section%', '(schedule|speakers|sponsors|tickets|location)' );
 	add_rewrite_rule( 'wordcamp/([^/]+)/(schedule|speakers|sponsors|tickets|location)/?$', 'index.php?wordcamp=$matches[1]&wc_section=$matches[2]', 'top' );
@@ -46,8 +61,13 @@ add_action( 'init', 'recipe_3' );
 # add_filter( 'wc_section_rewrite_rules', 'function_that_pulls_out_attachment_rules' );
 
 
-# Prerequisite post type and meta fields for Recipe 3: Creating Post "Sections"
+/**
+ * Setup data structures and meta fields for post sections
+ *
+ * @return void
+ */
 function recipe_3_prereq() {
+	# Prerequisite post type and meta fields for Recipe 3: Creating Post "Sections"
 	register_post_type( 'wordcamp', array(
 		'public' => true,
 		'label' => 'WordCamps'

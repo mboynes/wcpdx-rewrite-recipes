@@ -1,6 +1,15 @@
 <?php
+/**
+ * Recipe 2: Making one custom taxonomy a "parent" of another
+ */
 
-# Recipe 2: Making one custom taxonomy a "parent" of another
+
+
+/**
+ * Register our data structures
+ *
+ * @return void
+ */
 function recipe_2() {
 	register_taxonomy( 'body_type', 'model', array(
 		'label' => 'Body Types',
@@ -22,6 +31,13 @@ function recipe_2() {
 add_action( 'init', 'recipe_2' );
 
 
+/**
+ * Filter post type links for models to replace %body_type% & %make% if present
+ *
+ * @param string $link
+ * @param object $post
+ * @return string
+ */
 function recipe_2_car_links( $link, $post ) {
 	if ( 'model' == $post->post_type ) {
 		if ( $body_types = get_the_terms( $post->ID, 'body_type' ) ) {
@@ -36,6 +52,14 @@ function recipe_2_car_links( $link, $post ) {
 add_filter( 'post_type_link', 'recipe_2_car_links', 10, 2 );
 
 
+/**
+ * Filter term links for makes to replace %body_type% with "all"
+ *
+ * @param string $termlink
+ * @param object $term
+ * @param string $taxonomy
+ * @return string
+ */
 function recipe_2_make_links( $termlink, $term, $taxonomy ) {
 	if ( 'make' == $taxonomy ) {
 		return str_replace( '%body_type%', 'all', $termlink );

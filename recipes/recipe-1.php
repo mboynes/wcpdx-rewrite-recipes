@@ -1,6 +1,14 @@
 <?php
+/**
+ * Recipe 1: Adding custom taxonomies to custom post type rewrites
+ */
 
-# Recipe 1: Adding custom taxonomies to custom post type rewrites
+
+/**
+ * Register our data structures
+ *
+ * @return void
+ */
 function recipe_1() {
 	register_taxonomy( 'make', 'model', array(
 		'label' => 'Makes',
@@ -20,6 +28,13 @@ function recipe_1() {
 add_action( 'init', 'recipe_1' );
 
 
+/**
+ * Filter post type links for models to replace %make% if present
+ *
+ * @param string $link
+ * @param object $post
+ * @return string
+ */
 function recipe_1_link( $link, $post ) {
 	if ( 'model' == $post->post_type ) {
 		if ( $makes = get_the_terms( $post->ID, 'make' ) ) {
