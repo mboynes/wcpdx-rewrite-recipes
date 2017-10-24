@@ -97,7 +97,7 @@ register_post_type( 'model', array(
 function modify_model_links( $link, $post ) {
   if ( 'model' == $post->post_type ) {
 	if ( $makes = get_the_terms( $post->ID, 'make' ) ) {
-	  return str_replace( '%make%', array_unshift( $makes )->slug, $link );
+	  return str_replace( '%make%', array_pop( $makes )->slug, $link );
 	}
   }
   return $link;
@@ -243,10 +243,10 @@ register_post_type( 'model', array(
 function modify_model_links( $link, $post ) {
   if ( 'model' == $post->post_type ) {
 	if ( $body_types = get_the_terms( $post->ID, 'body_type' ) ) {
-	  $link = str_replace( '%body_type%', array_unshift( $body_types )->slug, $link );
+	  $link = str_replace( '%body_type%', array_pop( $body_types )->slug, $link );
 	}
 	if ( $makes = get_the_terms( $post->ID, 'make' ) ) {
-	  $link = str_replace( '%make%', array_unshift( $makes )->slug, $link );
+	  $link = str_replace( '%make%', array_pop( $makes )->slug, $link );
 	}
   }
   return $link;
